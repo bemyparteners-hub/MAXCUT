@@ -205,6 +205,23 @@ body{background:var(--bg-main);color:var(--text-main);font-family:'Segoe UI',sys
 /* WASTE INDICATOR */
 .waste-bar{height:6px;border-radius:3px;background:rgba(143,168,176,0.15);overflow:hidden;margin-top:0.4rem}
 .waste-bar-fill{height:100%;border-radius:3px;transition:width 0.5s ease}
+/* MATERIAL CONFIG */
+.mat-config-card{background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:0.75rem 1rem;align-items:center}
+@media(max-width:720px){.mat-config-card{grid-template-columns:1fr 1fr}}
+.mat-config-name{font-family:'Courier New',monospace;font-size:0.95rem;font-weight:700;color:var(--accent);letter-spacing:0.04em;min-width:120px}
+.mat-config-field{display:flex;flex-direction:column;gap:0.3rem}
+.mat-config-field label{font-size:0.7rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-secondary)}
+.mat-config-field input{background:var(--bg-main);border:1px solid var(--border);color:var(--text-main);padding:0.5rem 0.75rem;border-radius:var(--radius);font-size:0.875rem;font-family:inherit;transition:border-color 0.15s;width:100%}
+.mat-config-field input:focus{outline:none;border-color:var(--accent)}
+.mat-config-field input.required-empty{border-color:var(--danger);background:rgba(224,85,85,0.06)}
+.mat-config-field input.filled{border-color:rgba(76,175,130,0.4)}
+.mat-no-pieces{text-align:center;padding:1.5rem;color:var(--text-secondary);font-size:0.875rem;border:1px dashed var(--border);border-radius:var(--radius-lg)}
+.mat-format-hint{font-size:0.72rem;color:var(--text-secondary);margin-top:2px}
+.mat-format-hint code{background:var(--bg-tertiary);padding:1px 5px;border-radius:3px;font-family:'Courier New',monospace;font-size:0.7rem;color:var(--accent)}
+.mat-input-error{border-color:var(--danger) !important;background:rgba(224,85,85,0.06) !important}
+.mat-field-hint{font-size:0.68rem;color:var(--danger);margin-top:2px;display:none}
+.mat-field-hint.visible{display:block}
+.mat-config-section{display:flex;flex-direction:column;gap:0.75rem}
 </style>
 </head>
 <body>
@@ -354,6 +371,18 @@ body{background:var(--bg-main);color:var(--text-main);font-family:'Segoe UI',sys
         </div>
       </div>
     </div>
+
+    <!-- MATIERES SECTION -->
+    <div style="margin-top:1.5rem">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
+        <h2 style="font-size:1rem;font-weight:700">Matières détectées</h2>
+        <span style="font-size:0.8rem;color:var(--text-secondary)">— à remplir avant d'optimiser</span>
+      </div>
+      <p class="section-sub" style="margin-bottom:1rem">Pour chaque matière saisie dans les pièces, définissez le format de la feuille en stock et la quantité disponible.</p>
+      <div class="mat-config-section" id="matConfigSection">
+        <div class="mat-no-pieces">Aucune matière détectée — saisissez des pièces avec un champ Matière/Couleur.</div>
+      </div>
+    </div>
   </section>
 
   <!-- RESULTS SECTION -->
@@ -452,7 +481,8 @@ const state = {
   },
   results: null,
   nextPieceId: 1,
-  nextFormatId: 5
+  nextFormatId: 5,
+  materialConfigs: {}  // keyed by material name: {width, height, stockQty}
 };
 
 const PIECE_COLORS = [
@@ -489,6 +519,7 @@ function addPiece(data) {
   state.pieces.push(piece);
   renderPiecesTable();
   updatePieceCounters();
+  if (piece.material) syncMaterialConfigs();
   return piece;
 }
 
@@ -496,6 +527,7 @@ function deletePiece(id) {
   state.pieces = state.pieces.filter(p => p.id !== id);
   renderPiecesTable();
   updatePieceCounters();
+  syncMaterialConfigs();
 }
 
 function updatePieceField(id, field, value) {
@@ -505,6 +537,10 @@ function updatePieceField(id, field, value) {
     p[field] = value === '' ? '' : parseFloat(value);
   } else {
     p[field] = value;
+  }
+  if (field === 'material') {
+    validateMaterialField(id, value);
+    syncMaterialConfigs();
   }
   updatePieceCounters();
   validatePieceRow(p);
@@ -566,7 +602,13 @@ function renderPiecesTable() {
       <td><input type="number" value="${p.length}" placeholder="3000" min="1" step="1" oninput="updatePieceField('${p.id}','length',this.value)"></td>
       <td><input type="number" value="${p.width}" placeholder="200" min="1" step="1" oninput="updatePieceField('${p.id}','width',this.value)"></td>
       <td><input type="number" value="${p.qty}" min="1" max="999" step="1" style="width:60px" oninput="updatePieceField('${p.id}','qty',this.value)"></td>
-      <td class="col-mat"><input type="text" value="${esc(p.material)}" placeholder="RAL9006 / Anodisé…" oninput="updatePieceField('${p.id}','material',this.value)"></td>
+      <td class="col-mat"><input type="text" value="${esc(p.material)}" placeholder="ex: AL15-9006M" oninput="updatePieceField('${p.id}','material',this.value)" title="Format PLIALU : AL{épaisseur}-{code}  ex: AL15-9006M, AL10-7016M, AL20-NAT" list="matiere-suggestions" autocomplete="off" id="mat-${p.id}">
+        <datalist id="matiere-suggestions">
+          <option value="AL10-9006M"><option value="AL15-9006M"><option value="AL20-9006M">
+          <option value="AL10-7016M"><option value="AL15-7016M"><option value="AL20-7016M">
+          <option value="AL10-NAT"><option value="AL15-NAT"><option value="AL20-NAT">
+          <option value="AL10-9005M"><option value="AL15-9005M">
+        </datalist></td>
       <td><button class="btn btn-danger" onclick="deletePiece('${p.id}')" title="Supprimer">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
       </button></td>
@@ -577,6 +619,120 @@ function renderPiecesTable() {
 
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+// ============================================================
+// MATERIAL FORMAT VALIDATION
+// ============================================================
+const MAT_PATTERN = /^AL\d{1,3}-[A-Z0-9]+$/i;
+
+function validateMaterialField(pieceId, value) {
+  const inp = document.getElementById('mat-' + pieceId);
+  if (!inp) return;
+  if (!value) { inp.classList.remove('mat-input-error'); return; }
+  if (!MAT_PATTERN.test(value.trim())) {
+    inp.classList.add('mat-input-error');
+  } else {
+    inp.classList.remove('mat-input-error');
+  }
+}
+
+// ============================================================
+// MATERIAL CONFIGS (per-material sheet dimensions)
+// ============================================================
+function syncMaterialConfigs() {
+  // Collect unique non-empty materials from pieces
+  const activeMaterials = new Set(
+    state.pieces.map(p => (p.material||'').trim()).filter(Boolean)
+  );
+
+  // Add new materials with defaults
+  activeMaterials.forEach(mat => {
+    if (!state.materialConfigs[mat]) {
+      state.materialConfigs[mat] = {width: 1500, height: '', stockQty: ''};
+    }
+  });
+
+  // Remove materials no longer used
+  Object.keys(state.materialConfigs).forEach(mat => {
+    if (!activeMaterials.has(mat)) delete state.materialConfigs[mat];
+  });
+
+  renderMaterialConfigs();
+}
+
+function renderMaterialConfigs() {
+  const section = document.getElementById('matConfigSection');
+  if (!section) return;
+  const mats = Object.keys(state.materialConfigs);
+  if (mats.length === 0) {
+    section.innerHTML = '<div class="mat-no-pieces">Aucune matière détectée — saisissez des pièces avec un champ Matière/Couleur au format PLIALU (ex: AL15-9006M).</div>';
+    return;
+  }
+
+  section.innerHTML = mats.map(mat => {
+    const cfg = state.materialConfigs[mat];
+    const hEmpty = !cfg.height ? 'required-empty' : 'filled';
+    const wClass = cfg.width ? 'filled' : 'required-empty';
+    const qClass = cfg.stockQty ? 'filled' : '';
+    const isValid = MAT_PATTERN.test(mat);
+    return `
+    <div class="mat-config-card" id="matcfg-${CSS.escape(mat)}">
+      <div>
+        <div class="mat-config-name">${esc(mat)}</div>
+        ${!isValid ? `<div style="font-size:0.68rem;color:var(--warning);margin-top:3px">⚠ Format non standard</div>` : ''}
+      </div>
+      <div class="mat-config-field">
+        <label>Largeur feuille stock (mm)</label>
+        <input type="number" value="${cfg.width||''}" min="100" step="1" placeholder="1500"
+          class="${wClass}"
+          oninput="updateMaterialConfig('${esc(mat)}','width',this.value)">
+      </div>
+      <div class="mat-config-field">
+        <label>Longueur feuille stock (mm) <span style="color:var(--danger)">*</span></label>
+        <input type="number" value="${cfg.height||''}" min="100" step="1" placeholder="Obligatoire"
+          class="${hEmpty}"
+          oninput="updateMaterialConfig('${esc(mat)}','height',this.value)">
+        <span class="mat-field-hint ${!cfg.height ? 'visible' : ''}" id="hint-h-${CSS.escape(mat)}">Champ obligatoire</span>
+      </div>
+      <div class="mat-config-field">
+        <label>Qté en stock WorkPlan</label>
+        <input type="number" value="${cfg.stockQty||''}" min="0" step="1" placeholder="ex: 10"
+          class="${qClass}"
+          oninput="updateMaterialConfig('${esc(mat)}','stockQty',this.value)">
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateMaterialConfig(mat, field, value) {
+  if (!state.materialConfigs[mat]) return;
+  state.materialConfigs[mat][field] = value === '' ? '' : (field === 'stockQty' ? parseInt(value)||'' : parseFloat(value)||'');
+
+  // Update visual state of the input
+  const card = document.getElementById('matcfg-' + CSS.escape(mat));
+  if (!card) return;
+  const inputs = card.querySelectorAll('input');
+  inputs.forEach(inp => {
+    inp.classList.remove('required-empty','filled');
+    if (inp.value) inp.classList.add('filled');
+    else if (inp.placeholder === 'Obligatoire') inp.classList.add('required-empty');
+  });
+  const hint = document.getElementById('hint-h-' + CSS.escape(mat));
+  if (hint) hint.classList.toggle('visible', !state.materialConfigs[mat].height);
+}
+
+function validateMaterialConfigs() {
+  // Returns true if all materials with pieces have required fields filled
+  const activeMaterials = new Set(
+    state.pieces.map(p => (p.material||'').trim()).filter(Boolean)
+  );
+  const missing = [];
+  activeMaterials.forEach(mat => {
+    const cfg = state.materialConfigs[mat];
+    if (!cfg || !cfg.height || !cfg.width) missing.push(mat);
+  });
+  return missing;
 }
 
 // ============================================================
@@ -800,6 +956,13 @@ function optimizeMaterialGroup(materialLabel, items, formats, kerf) {
   const sorted = [...items].sort((a,b) => b.area - a.area);
   const totalPieceArea = sorted.reduce((s,i) => s+i.area, 0);
 
+  // If this material has a specific stock format configured, use only that
+  const matCfg = state.materialConfigs[materialLabel];
+  if (matCfg && matCfg.width && matCfg.height) {
+    const stockFmt = {id:'stock-'+materialLabel, width: parseFloat(matCfg.width), height: parseFloat(matCfg.height)};
+    formats = [stockFmt];
+  }
+
   let bestResult = null;
   let bestWastePct = Infinity;
   let bestFormat = null;
@@ -846,7 +1009,9 @@ function optimizeMaterialGroup(materialLabel, items, formats, kerf) {
     totalPieceArea,
     wastePct: bestWastePct,
     formatResults,
-    choiceReason: `Format ${bestFormat.width}×${bestFormat.height} mm – meilleure utilisation : ${(100-bestWastePct).toFixed(1)}%`
+    choiceReason: (bestFormat.id && bestFormat.id.startsWith('stock-'))
+      ? `Format stock ${bestFormat.width}×${bestFormat.height} mm – utilisation : ${(100-bestWastePct).toFixed(1)}%`
+      : `Format ${bestFormat.width}×${bestFormat.height} mm – meilleure utilisation : ${(100-bestWastePct).toFixed(1)}%`
   };
 }
 
@@ -905,6 +1070,22 @@ function runOptimize() {
   if (validPieces.length === 0) {
     notify('Aucune pièce valide à optimiser', 'warning');
     showTab('pieces');
+    return;
+  }
+
+  // Validate material configs
+  const missingConfigs = validateMaterialConfigs();
+  if (missingConfigs.length > 0) {
+    notify(`Paramètres manquants pour : ${missingConfigs.join(', ')} — Longueur feuille stock obligatoire`, 'error');
+    showTab('params');
+    // Highlight missing fields
+    missingConfigs.forEach(mat => {
+      const card = document.getElementById('matcfg-' + CSS.escape(mat));
+      if (card) {
+        card.style.borderColor = 'var(--danger)';
+        setTimeout(() => { if(card) card.style.borderColor = ''; }, 3000);
+      }
+    });
     return;
   }
   const spinner = document.getElementById('globalSpinner');
@@ -1463,14 +1644,7 @@ function init() {
   renderFormats();
   document.getElementById('p_date').value = state.settings.date;
   document.getElementById('p_kerf').value = state.settings.kerf;
-  // Sample data
-  [
-    {name:'Couverture',ref:'COV-01',length:3000,width:200,qty:4,material:'RAL9006 Gris'},
-    {name:'Bavette',ref:'BAV-02',length:1500,width:150,qty:6,material:'RAL9006 Gris'},
-    {name:'Habillage façade',ref:'HAB-03',length:2400,width:300,qty:2,material:'Anodisé naturel'},
-    {name:'Appui fenêtre',ref:'APP-04',length:1200,width:250,qty:8,material:'RAL9006 Gris'},
-    {name:'Larmier',ref:'LAR-05',length:2000,width:100,qty:3,material:'Anodisé naturel'},
-  ].forEach(p => addPiece(p));
+  addPiece(); // 1 ligne vide par défaut
 }
 
 document.addEventListener('DOMContentLoaded', init);
