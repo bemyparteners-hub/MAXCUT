@@ -225,6 +225,8 @@ body{background:var(--bg-main);color:var(--text-main);font-family:'Segoe UI',sys
 .mat-fmt-input:focus{outline:none;border-color:var(--accent)}
 .mat-fmt-input.required-empty{border-color:var(--danger);background:rgba(224,85,85,0.06)}
 .mat-fmt-input.filled{border-color:rgba(76,175,130,0.35)}
+.stock-alert{background:rgba(240,165,0,0.1);border:1px solid var(--warning);border-left:4px solid var(--warning);border-radius:var(--radius);padding:0.75rem 1rem;font-size:0.875rem;color:var(--warning);display:flex;align-items:center;gap:0.6rem}
+.stock-alerts-block{display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.25rem}
 </style>
 </head>
 <body>
@@ -299,8 +301,8 @@ body{background:var(--bg-main);color:var(--text-main);font-family:'Segoe UI',sys
           <tr>
             <th style="width:32px">#</th>
             <th class="col-name">Nom de la pièce</th>
-            <th>Longueur (mm)</th>
             <th>Largeur (mm)</th>
+            <th>Longueur (mm)</th>
             <th>Qté</th>
             <th class="col-mat">Matière / Couleur</th>
             <th style="width:44px"></th>
@@ -402,6 +404,8 @@ body{background:var(--bg-main);color:var(--text-main);font-family:'Segoe UI',sys
       </div>
       <!-- STAT CARDS -->
       <div class="stats-grid" id="statsGrid"></div>
+      <!-- STOCK ALERTS -->
+      <div id="stockAlerts"></div>
       <!-- FORMAT BREAKDOWN -->
       <div class="card" style="margin-bottom:1.5rem" id="formatBreakdownCard">
         <div class="card-header"><span class="card-title">Détail par format</span></div>
@@ -594,8 +598,8 @@ function renderPiecesTable() {
     <tr id="row-${p.id}">
       <td style="color:var(--text-secondary);font-size:0.8rem;text-align:center">${i+1}</td>
       <td class="col-name"><input type="text" value="${esc(p.name)}" placeholder="Couverture…" onchange="updatePieceField('${p.id}','name',this.value)"></td>
-      <td><input type="number" value="${p.length}" placeholder="3000" min="1" step="1" oninput="updatePieceField('${p.id}','length',this.value)"></td>
       <td><input type="number" value="${p.width}" placeholder="200" min="1" step="1" oninput="updatePieceField('${p.id}','width',this.value)"></td>
+      <td><input type="number" value="${p.length}" placeholder="3000" min="1" step="1" oninput="updatePieceField('${p.id}','length',this.value)"></td>
       <td><input type="number" value="${p.qty}" min="1" max="999" step="1" style="width:60px" oninput="updatePieceField('${p.id}','qty',this.value)"></td>
       <td class="col-mat"><input type="text" value="${esc(p.material)}" placeholder="ex: AL15-9006M" oninput="updatePieceField('${p.id}','material',this.value)" title="Format PLIALU : AL{épaisseur}-{code}  ex: AL15-9006M, AL10-7016M, AL20-NAT" list="matiere-suggestions" autocomplete="off" id="mat-${p.id}">
         <datalist id="matiere-suggestions">
@@ -739,7 +743,14 @@ function updateMaterialFormat(mat, fmtId, field, value) {
   if (!cfg) return;
   const fmt = cfg.formats.find(f => f.id === fmtId);
   if (!fmt) return;
-  fmt[field] = value === '' ? '' : (field === 'stockQty' ? parseInt(value)||'' : parseFloat(value)||'');
+  if (value === '') {
+    fmt[field] = '';
+  } else if (field === 'stockQty') {
+    const n = parseInt(value);
+    fmt[field] = isNaN(n) ? '' : n;
+  } else {
+    fmt[field] = parseFloat(value) || '';
+  }
   // Live class update without full re-render
   const row = document.getElementById(`mfrow-${CSS.escape(mat)}-${CSS.escape(fmtId)}`);
   if (!row) return;
@@ -838,7 +849,7 @@ function expandPieces(pieces) {
         name: p.name || 'Pièce',
         length: parseFloat(p.length),
         width: parseFloat(p.width),
-        material: p.material || 'Défaut',
+        material: (p.material || '').trim() || 'Défaut',
         area: parseFloat(p.length) * parseFloat(p.width)
       });
     }
@@ -1030,8 +1041,7 @@ function optimizeMaterialGroup(materialLabel, items, kerf) {
     sheetGroups: groupIdenticalSheets(sheets),
     totalPieceArea: placedArea,
     wastePct,
-    choiceReason,
-    unplacedCount: remaining.length
+    choiceReason
   };
 }
 
@@ -1171,6 +1181,28 @@ function renderResults() {
       <div class="stat-sub">Pièces: ${(r.totalPieceArea/1e6).toFixed(2)} m²</div>
     </div>
   `;
+
+  // Stock alerts (per material × per format)
+  const stockAlertLines = [];
+  r.materialResults.forEach(mr => {
+    const matCfg = state.materialConfigs[mr.material];
+    if (!matCfg) return;
+    mr.usedFmts.forEach(used => {
+      const cfgFmt = matCfg.formats.find(f =>
+        parseFloat(f.width) === used.width && parseFloat(f.height) === used.height
+      );
+      if (cfgFmt && cfgFmt.stockQty !== '' && typeof cfgFmt.stockQty === 'number' && used.count > cfgFmt.stockQty) {
+        const n = used.count;
+        stockAlertLines.push(`<div class="stock-alert"><span style="font-size:1.1rem">⚠</span> Stock insuffisant pour <strong style="margin:0 0.25rem">${esc(mr.material)}</strong> (${used.width}×${used.height} mm) : ${n} feuille${n>1?'s':''} nécessaire${n>1?'s':''}, ${cfgFmt.stockQty} en stock</div>`);
+      }
+    });
+  });
+  const stockAlertsEl = document.getElementById('stockAlerts');
+  if (stockAlertsEl) {
+    stockAlertsEl.innerHTML = stockAlertLines.length
+      ? `<div class="stock-alerts-block">${stockAlertLines.join('')}</div>`
+      : '';
+  }
 
   // Format breakdown
   const fmtRows = r.materialResults.map(mr => {
