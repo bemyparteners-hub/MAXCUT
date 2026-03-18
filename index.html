@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aluminum Sheet Cutting Optimization</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        input { margin: 10px 0; padding: 10px; width: 200px; }
+        button { padding: 10px 20px; cursor: pointer; }
+        #result { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Aluminum Sheet Cutting Optimization</h1>
+    <h2>Input Dimensions</h2>
+    <label for="sheetWidth">Sheet Width (mm):</label>
+    <input type="number" id="sheetWidth" required>
+    <br>
+    <label for="sheetLength">Sheet Length (mm):</label>
+    <input type="number" id="sheetLength" required>
+    <br>
+    <label for="pieceWidth">Desired Piece Width (mm):</label>
+    <input type="number" id="pieceWidth" required>
+    <br>
+    <label for="pieceLength">Desired Piece Length (mm):</label>
+    <input type="number" id="pieceLength" required>
+    <br>
+    <button onclick="calculateCuts()">Calculate Optimal Cuts</button>
+    <div id="result"></div>
+    <script>
+        function calculateCuts() {
+            const sheetWidth = parseFloat(document.getElementById('sheetWidth').value);
+            const sheetLength = parseFloat(document.getElementById('sheetLength').value);
+            const pieceWidth = parseFloat(document.getElementById('pieceWidth').value);
+            const pieceLength = parseFloat(document.getElementById('pieceLength').value);
+
+            const piecesAcrossWidth = Math.floor(sheetWidth / pieceWidth);
+            const piecesAcrossLength = Math.floor(sheetLength / pieceLength);
+            const totalPieces = piecesAcrossWidth * piecesAcrossLength;
+
+            document.getElementById('result').innerHTML = `<h3>Optimal Cuts:</h3><p>You can cut a total of <strong>${totalPieces}</strong> pieces.</p>`;
+        }
+    </script>
+</body>
+</html>
