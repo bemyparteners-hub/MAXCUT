@@ -79,9 +79,8 @@ body{background:var(--bg-main);color:var(--text-main);font-family:'Segoe UI',sys
 .pieces-table input:focus,.pieces-table select:focus{outline:none;border-color:var(--accent);background:rgba(232,252,105,0.05)}
 .pieces-table input.error{border-color:var(--danger) !important;background:rgba(224,85,85,0.08)}
 .pieces-table input[type=number]{min-width:70px}
-.pieces-table .col-name input{min-width:140px}
-.pieces-table .col-ref input{min-width:100px}
-.pieces-table .col-mat input{min-width:120px}
+.pieces-table .col-name input{min-width:160px}
+.pieces-table .col-mat input{min-width:130px}
 .empty-state{text-align:center;padding:3rem 1rem;color:var(--text-secondary)}
 .empty-state svg{opacity:0.3;margin-bottom:0.75rem}
 .empty-state p{font-size:0.95rem;margin-bottom:1rem}
@@ -300,7 +299,6 @@ body{background:var(--bg-main);color:var(--text-main);font-family:'Segoe UI',sys
           <tr>
             <th style="width:32px">#</th>
             <th class="col-name">Nom de la pièce</th>
-            <th class="col-ref">Référence</th>
             <th>Longueur (mm)</th>
             <th>Largeur (mm)</th>
             <th>Qté</th>
@@ -310,7 +308,7 @@ body{background:var(--bg-main);color:var(--text-main);font-family:'Segoe UI',sys
         </thead>
         <tbody id="piecesBody">
           <tr id="emptyRow">
-            <td colspan="8">
+            <td colspan="7">
               <div class="empty-state">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
                 <p>Aucune pièce saisie. Cliquez sur <strong>"Ajouter une pièce"</strong> pour commencer.</p>
@@ -435,14 +433,14 @@ body{background:var(--bg-main);color:var(--text-main);font-family:'Segoe UI',sys
       <button class="btn-icon" onclick="closeModal('csvModal')" style="width:32px;height:32px">✕</button>
     </div>
     <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem">
-      Format attendu : <code style="background:var(--bg-tertiary);padding:2px 6px;border-radius:4px;font-size:0.8rem">Nom;Référence;Longueur;Largeur;Quantité;Matière</code>
+      Format attendu : <code style="background:var(--bg-tertiary);padding:2px 6px;border-radius:4px;font-size:0.8rem">Nom;Longueur;Largeur;Quantité;Matière</code>
     </p>
     <input type="file" accept=".csv,.txt" id="csvFile" style="display:none" onchange="processCsvFile(event)">
     <div style="border:2px dashed var(--border);border-radius:var(--radius);padding:2rem;text-align:center;cursor:pointer;margin-bottom:1rem" onclick="document.getElementById('csvFile').click()" id="csvDropZone">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.4;margin-bottom:0.5rem"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       <p style="font-size:0.875rem;color:var(--text-secondary)">Cliquez pour sélectionner un fichier CSV</p>
     </div>
-    <textarea id="csvTextarea" class="form-control" rows="6" placeholder="Ou collez votre CSV ici...&#10;Couverture;COV-01;3000;200;4;RAL9006&#10;Bavette;BAV-02;1500;150;6;Anodisé"></textarea>
+    <textarea id="csvTextarea" class="form-control" rows="6" placeholder="Ou collez votre CSV ici...&#10;Couverture;3000;200;4;AL15-9006M&#10;Bavette;1500;150;6;AL15-9006M"></textarea>
     <div style="display:flex;gap:0.5rem;margin-top:1rem;justify-content:flex-end">
       <button class="btn btn-secondary" onclick="closeModal('csvModal')">Annuler</button>
       <button class="btn btn-primary" onclick="importFromTextarea()">Importer</button>
@@ -501,7 +499,6 @@ function addPiece(data) {
   const piece = {
     id,
     name: data?.name || '',
-    ref: data?.ref || '',
     length: data?.length || '',
     width: data?.width || '',
     qty: data?.qty || 1,
@@ -587,7 +584,7 @@ function updatePieceCounters() {
 function renderPiecesTable() {
   const tbody = document.getElementById('piecesBody');
   if (state.pieces.length === 0) {
-    tbody.innerHTML = `<tr id="emptyRow"><td colspan="8"><div class="empty-state">
+    tbody.innerHTML = `<tr id="emptyRow"><td colspan="7"><div class="empty-state">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
       <p>Aucune pièce saisie. Cliquez sur <strong>"Ajouter une pièce"</strong> pour commencer.</p>
     </div></td></tr>`;
@@ -597,7 +594,6 @@ function renderPiecesTable() {
     <tr id="row-${p.id}">
       <td style="color:var(--text-secondary);font-size:0.8rem;text-align:center">${i+1}</td>
       <td class="col-name"><input type="text" value="${esc(p.name)}" placeholder="Couverture…" onchange="updatePieceField('${p.id}','name',this.value)"></td>
-      <td class="col-ref"><input type="text" value="${esc(p.ref)}" placeholder="COV-01" onchange="updatePieceField('${p.id}','ref',this.value)"></td>
       <td><input type="number" value="${p.length}" placeholder="3000" min="1" step="1" oninput="updatePieceField('${p.id}','length',this.value)"></td>
       <td><input type="number" value="${p.width}" placeholder="200" min="1" step="1" oninput="updatePieceField('${p.id}','width',this.value)"></td>
       <td><input type="number" value="${p.qty}" min="1" max="999" step="1" style="width:60px" oninput="updatePieceField('${p.id}','qty',this.value)"></td>
@@ -816,11 +812,11 @@ function importFromTextarea() {
   lines.forEach(line => {
     const sep = line.includes(';') ? ';' : ',';
     const cols = line.split(sep).map(c => c.trim().replace(/^"|"$/g,''));
-    if (cols.length < 4) { errors++; return; }
-    const [name, ref, length, width, qty, material] = cols;
+    if (cols.length < 3) { errors++; return; }
+    const [name, length, width, qty, material] = cols;
     const l = parseFloat(length), w = parseFloat(width), q = parseInt(qty)||1;
     if (!l || !w) { errors++; return; }
-    addPiece({name, ref, length:l, width:w, qty:q, material:material||''});
+    addPiece({name, length:l, width:w, qty:q, material:material||''});
     imported++;
   });
   closeModal('csvModal');
@@ -840,7 +836,6 @@ function expandPieces(pieces) {
       expanded.push({
         pieceId: p.id,
         name: p.name || 'Pièce',
-        ref: p.ref || '',
         length: parseFloat(p.length),
         width: parseFloat(p.width),
         material: p.material || 'Défaut',
@@ -959,37 +954,59 @@ function optimizeMaterialGroup(materialLabel, items, kerf) {
     .map(f => ({id:f.id, width:parseFloat(f.width), height:parseFloat(f.height)}));
   if (formats.length === 0) return null;
 
-  // ---- Multi-format greedy bin packing ----
-  // For each new bin to open, test all formats and pick the one that yields
-  // the highest area utilisation on that sheet (best-fit-format heuristic).
-  const sheets = [];
-  let remaining = [...sorted];
-  let safety = 0;
+  // ---- Exhaustive multi-format packing ----
+  // Try every non-empty subset of formats × 3 sort orders.
+  // For each (subset, order) pair, run the greedy best-fit-format heuristic.
+  // Keep the result with the lowest waste %.
+  //
+  // Complexity: (2^K − 1) subsets × 3 orders × O(n²) packing
+  // K≤4 → max 45 runs — fast in-browser even for large piece counts.
 
-  while (remaining.length > 0 && safety++ < 5000) {
-    let bestPlacements = null, bestRemaining = null, bestEff = -1, bestFmt = null;
+  const sortOrders = [
+    (a,b) => b.area - a.area,                              // largest area first
+    (a,b) => Math.max(b.length,b.width) - Math.max(a.length,a.width), // largest dimension first
+    (a,b) => Math.min(b.length,b.width) - Math.min(a.length,a.width), // largest min-dim first
+  ];
 
-    for (const fmt of formats) {
-      const fitsAny = remaining.some(item => getOrientations(item, fmt.width, fmt.height).length > 0);
-      if (!fitsAny) continue;
-      const result = packOneSheet(remaining, fmt.width, fmt.height, kerf);
-      if (result.placed.length === 0) continue;
-      const placedArea = result.placed.reduce((s,p) => s + p.w * p.h, 0);
-      const eff = placedArea / (fmt.width * fmt.height);
-      if (eff > bestEff) {
-        bestEff = eff; bestFmt = fmt;
-        bestPlacements = result.placed; bestRemaining = result.remaining;
+  function runGreedy(fmtSubset, sortFn) {
+    const order = [...items].sort(sortFn);
+    const shts = [];
+    let rem = [...order];
+    let guard = 0;
+    while (rem.length > 0 && guard++ < 5000) {
+      let bPlace = null, bRem = null, bEff = -1, bFmt = null;
+      for (const fmt of fmtSubset) {
+        if (!rem.some(it => getOrientations(it, fmt.width, fmt.height).length > 0)) continue;
+        const res = packOneSheet(rem, fmt.width, fmt.height, kerf);
+        if (!res.placed.length) continue;
+        const eff = res.placed.reduce((s,p)=>s+p.w*p.h,0) / (fmt.width * fmt.height);
+        if (eff > bEff) { bEff=eff; bFmt=fmt; bPlace=res.placed; bRem=res.remaining; }
       }
+      if (!bPlace) break;
+      shts.push({width:bFmt.width, height:bFmt.height, placements:bPlace});
+      rem = bRem;
     }
-
-    if (!bestPlacements) break; // nothing fits any format
-    sheets.push({width:bestFmt.width, height:bestFmt.height, placements:bestPlacements});
-    remaining = bestRemaining;
+    return shts;
   }
 
-  if (sheets.length === 0) return null;
+  let bestSheets = null, bestWaste = Infinity;
+  const subsetCount = 1 << formats.length;           // 2^K
 
-  const placedArea = sheets.reduce((s,sh) => s + sh.placements.reduce((ss,p)=>ss+p.w*p.h,0), 0);
+  for (let mask = 1; mask < subsetCount; mask++) {
+    const subset = formats.filter((_,i) => mask & (1 << i));
+    for (const sortFn of sortOrders) {
+      const shts = runGreedy(subset, sortFn);
+      if (!shts.length) continue;
+      const pa = shts.reduce((s,sh)=>s+sh.placements.reduce((ss,p)=>ss+p.w*p.h,0),0);
+      const wst = calcWastePct(shts, pa);
+      if (wst < bestWaste) { bestWaste = wst; bestSheets = shts; }
+    }
+  }
+
+  if (!bestSheets) return null;
+  const sheets = bestSheets;
+
+  const placedArea = sheets.reduce((s,sh)=>s+sh.placements.reduce((ss,p)=>ss+p.w*p.h,0),0);
   const wastePct = calcWastePct(sheets, placedArea);
 
   // Tally which formats were used
@@ -1214,7 +1231,6 @@ function renderPlans(r) {
       const cutListRows = Object.values(cutGroups).map(cg => `
         <tr>
           <td><span class="piece-color-dot" style="background:${getPieceColor(cg.item.pieceId)}"></span>${esc(cg.item.name)}</td>
-          <td style="font-family:'Courier New',monospace">${esc(cg.item.ref)}</td>
           <td style="font-family:'Courier New',monospace">${cg.w}</td>
           <td style="font-family:'Courier New',monospace">${cg.h}</td>
           <td style="font-weight:700;color:var(--accent)">×${cg.qty}</td>
@@ -1245,7 +1261,7 @@ function renderPlans(r) {
           <div>
             <div class="cut-list-title">Liste de coupe</div>
             <table class="cut-list">
-              <thead><tr><th>Pièce</th><th>Réf</th><th>Long.</th><th>Larg.</th><th>Qté</th></tr></thead>
+              <thead><tr><th>Pièce</th><th>Long.</th><th>Larg.</th><th>Qté</th></tr></thead>
               <tbody>${cutListRows}</tbody>
             </table>
           </div>
@@ -1365,11 +1381,11 @@ function drawCutPlan(canvasId, containerId, sheet) {
 // ============================================================
 function exportCSVResult() {
   if (!state.results) { notify('Aucun résultat à exporter', 'warning'); return; }
-  let csv = 'Matière;Format;N° Feuille;Pièce;Référence;Longueur;Largeur;X;Y;Rotation\n';
+  let csv = 'Matière;Format;N° Feuille;Pièce;Longueur;Largeur;X;Y;Rotation\n';
   state.results.materialResults.forEach(mr => {
     mr.sheets.forEach((sh, si) => {
       sh.placements.forEach(pl => {
-        csv += `${mr.material};${sh.width}x${sh.height};${si+1};${pl.item.name};${pl.item.ref};${pl.w};${pl.h};${pl.x};${pl.y};${pl.rotated?'Oui':'Non'}\n`;
+        csv += `${mr.material};${sh.width}x${sh.height};${si+1};${pl.item.name};${pl.w};${pl.h};${pl.x};${pl.y};${pl.rotated?'Oui':'Non'}\n`;
       });
     });
   });
@@ -1546,8 +1562,8 @@ async function exportPDF() {
 
         doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(143,168,176);
         doc.text('LISTE DE COUPE', listX, py); py += 5;
-        const lh = ['Pièce','Réf','L','l','Qté'];
-        const lw = [28,22,10,10,5];
+        const lh = ['Pièce','L (mm)','l (mm)','Qté'];
+        const lw = [40,14,14,7];
         doc.setFillColor(26,61,74); doc.rect(listX, py-4, listW, 6, 'F');
         doc.setFontSize(6.5); doc.setTextColor(143,168,176);
         let lcx = listX+1;
@@ -1557,9 +1573,9 @@ async function exportPDF() {
           if (i%2===1){doc.setFillColor(13,41,51);doc.rect(listX,py-3,listW,5,'F');}
           doc.setTextColor(240,240,240); doc.setFontSize(6.5);
           lcx = listX+1;
-          const vals = [li.item.name.substring(0,14), li.item.ref.substring(0,10), ''+li.w, ''+li.h, '×'+li.qty];
+          const vals = [li.item.name.substring(0,18), ''+li.w, ''+li.h, '×'+li.qty];
           vals.forEach((v,vi)=>{
-            if(vi===4){doc.setTextColor(232,252,105);}else doc.setTextColor(240,240,240);
+            if(vi===3){doc.setTextColor(232,252,105);}else doc.setTextColor(240,240,240);
             doc.text(v,lcx,py);lcx+=lw[vi];
           });
           py += 5;
